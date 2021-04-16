@@ -34,7 +34,7 @@ def run_training(optimizer_config=None, vae_config=None, num_epochs=100, test_fr
     pyro.clear_param_store()
 
     # setup the VAE
-    vae = VAE(vae_config, use_cuda=USE_CUDA)
+    vae = VAE(use_cuda=USE_CUDA, **vae_config)
 
     # setup the optimizer
     # adam_args = {"lr": LEARNING_RATE}
