@@ -11,7 +11,7 @@ urllib.request.install_opener(opener)
 
 
 def get_datasets(name, batch_size_train=256, batch_size_test=1024,
-                 num_workers=2, pin_memory=True, transformation_kwargs=None, download=True):
+                 num_workers=2, pin_memory=True, transformation_kwargs=None):
     # TODO: validation
     dataset = getattr(datasets, name)
 
@@ -19,17 +19,13 @@ def get_datasets(name, batch_size_train=256, batch_size_test=1024,
         transformation_kwargs = {}
     train_transform, test_transform = get_transformations(**transformation_kwargs)
 
-    train_loader = torch.utils.data.DataLoader(
-        dataset(f'{name.lower()}_data', train=True, download=download,
-                transform=train_transform),
-        batch_size=batch_size_train, shuffle=True, num_workers=num_workers, pin_memory=True)
+    train_dataset = dataset(f'{name.lower()}_data', train=True, download=True,
+                transform=train_transform)
 
-    test_loader = torch.utils.data.DataLoader(
-        dataset(f'{name.lower()}_data', train=False, download=False,
-                transform=test_transform),
-        batch_size=batch_size_test, shuffle=False, num_workers=num_workers, pin_memory=True)
+    test_dataset = dataset(f'{name.lower()}_data', train=False, download=False,
+                transform=test_transform)
 
-    return train_loader, test_loader
+    return train_dataset, test_dataset
 
 
 def get_transformations(flip=False, crop=False, crop_size=32, crop_padding=4, normalize=None):

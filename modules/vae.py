@@ -33,7 +33,9 @@ class VAE(torch.nn.Module):
             z = pyro.sample("z", dist.Normal(z_loc, z_scale).to_event(1))
 
             loc_img = self.decoder(z, y)
+            # TODO: Bernoulli now raises: The value argument must be within the support
             pyro.sample("obs", dist.Bernoulli(loc_img).to_event(1), obs=x.reshape(-1, 784))
+            # pyro.sample("obs", dist.Normal(loc_img, 0.1).to_event(1), obs=x.reshape(-1, 784))
 
     def model_unsupervised(self, x):
         """ p(x|y,z), where y ~ q(y|x) (unobserved)
@@ -45,7 +47,9 @@ class VAE(torch.nn.Module):
             z = pyro.sample("z", dist.Normal(z_loc, z_scale).to_event(1))
             y = pyro.sample("y", dist.Categorical(torch.ones(10)))
             loc_img = self.decoder(z, y)
+
             pyro.sample("obs", dist.Bernoulli(loc_img).to_event(1), obs=x.reshape(-1, 784))
+            # pyro.sample("obs", dist.Normal(loc_img, 0.1).to_event(1), obs=x.reshape(-1, 784))
 
     def guide_supervised(self, x, y):
         """ q(z|x)

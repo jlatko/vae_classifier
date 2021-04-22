@@ -16,7 +16,7 @@ def get_losses(vae, y, x, x_unsupervised):
       x, y)
 
   # unsupervised ELBO (missing y)
-  if x_unsupervised:
+  if x_unsupervised is not None:
     loss_unsup = loss_fn(
         vae.model_unsupervised,
         vae.guide_unsupervised,
