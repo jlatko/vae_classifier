@@ -6,6 +6,7 @@ import pyro.contrib.examples.util
 from modules.classifier import Classifier
 from modules.decoder import Decoder
 from modules.encoder import Encoder
+from utils.torch_utils import to_gpu
 
 
 class VAE(torch.nn.Module):
@@ -45,7 +46,7 @@ class VAE(torch.nn.Module):
             z_loc = x.new_zeros(torch.Size((x.shape[0], self.z_dim)))
             z_scale = x.new_ones(torch.Size((x.shape[0], self.z_dim)))
             z = pyro.sample("z", dist.Normal(z_loc, z_scale).to_event(1))
-            y = pyro.sample("y", dist.Categorical(torch.ones(10)))
+            y = pyro.sample("y", dist.Categorical(to_gpu(torch.ones(10))))
             loc_img = self.decoder(z, y)
 
             pyro.sample("obs", dist.Bernoulli(loc_img).to_event(1), obs=x.reshape(-1, 784))
