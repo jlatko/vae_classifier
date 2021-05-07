@@ -23,7 +23,7 @@ def train(vae, train_loader_labelled, train_loader_missing, optimizer, use_cuda=
             x = x.cuda()
             y = y.cuda()
             if x_unsupervised is not None:
-                x_unsupervised.cuda()
+                x_unsupervised = x_unsupervised.cuda()
         # calculate loss
         loss_unsup, loss_sup, loss_class, y_logits = get_losses(vae, y, x, x_unsupervised)
         loss = loss_unsup + loss_sup + a * loss_class
