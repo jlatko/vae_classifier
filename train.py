@@ -26,12 +26,7 @@ assert pyro.__version__.startswith('1.6.0')
 pyro.distributions.enable_validation(False)
 pyro.set_rng_seed(0)
 
-
-def run_training(optimizer_config=None, vae_config=None, num_epochs=100, test_frequency=5, fraction_missing=0.5, missing_batch_size=128, labelled_batch_size=128, n_steps=200):
-    if optimizer_config is None:
-        optimizer_config = OPTIMIZER_CONFIG
-    if vae_config is None:
-        vae_config = VAE_CONFIG
+def setup_data(fraction_missing=0.5, missing_batch_size=128, labelled_batch_size=128, n_steps=200):
 
     print('Preparing data')
     # get datasets from torchvision
@@ -60,6 +55,14 @@ def run_training(optimizer_config=None, vae_config=None, num_epochs=100, test_fr
         train_loader_missing = torch.utils.data.DataLoader(data_missing,
             batch_size=labelled_batch_size, sampler=sampler, num_workers=2, pin_memory=USE_CUDA)
 
+    return train_loader_labelled, train_loader_missing, test_loader
+
+def setup_model(optimizer_config=None, vae_config=None):
+    if optimizer_config is None:
+        optimizer_config = OPTIMIZER_CONFIG
+    if vae_config is None:
+        vae_config = VAE_CONFIG
+
     # clear param store
     pyro.clear_param_store()
 
@@ -70,26 +73,40 @@ def run_training(optimizer_config=None, vae_config=None, num_epochs=100, test_fr
     # setup the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), **optimizer_config)
 
-    train_elbo = []
-    test_elbo = []
+    return vae, optimizer
+
+def run_training(optimizer_config=None, vae_config=None, num_epochs=100, test_frequency=1, a=1000, fraction_missing=0.99, missing_batch_size=128, labelled_batch_size=128, n_steps=200):
+    train_loader_labelled, train_loader_missing, test_loader = setup_data(fraction_missing, missing_batch_size, labelled_batch_size, n_steps)
+    vae, optimizer = setup_model(optimizer_config, vae_config)
+
+    results_train = []
+    results_test = []
+
     # training loop
     for epoch in range(num_epochs):
-        results = train(vae, train_loader_labelled, train_loader_missing, optimizer, use_cuda=USE_CUDA)
-        train_elbo.append(results['loss'])
+        results = train(vae, train_loader_labelled, train_loader_missing, optimizer, use_cuda=USE_CUDA, a=a)
+        results_train.append(results)
         print(f"[epoch {epoch}] average training loss: {results['loss']:.4f} "
               f"| sup: {results['loss_supervised']:.4f} "
               f"| unsup: {results['loss_unsupervised']:.4f}"
-              f"| class: {results['loss_class']:.4f}")
+              f"| class: {results['loss_class']:.4f}"
+              f"| acc: {results['accuracy']:.4f}")
 
         if epoch % test_frequency == 0:
 
             # report test diagnostics
-            total_epoch_loss_test, classification_accuracy = evaluate(vae, test_loader, use_cuda=USE_CUDA)
-            test_elbo.append(-total_epoch_loss_test)
-            print("[epoch %03d] average test loss: %.4f, accuracy %.4f" % (epoch, total_epoch_loss_test, classification_accuracy))
+            results = evaluate(vae, test_loader, use_cuda=USE_CUDA, a=a)
+            results_test.append(results)
+            print(f"TEST [e {epoch}]: average loss: {results['loss']:.4f} "
+                  f"| sup: {results['loss_supervised']:.4f} "
+                  f"| unsup: {results['loss_unsupervised']:.4f}"
+                  f"| class: {results['loss_class']:.4f}"
+                    f"| acc: {results['accuracy']:.4f}")
 
     return {
         'vae': vae,
+        'results_train': results_train,
+        'results_test': results_test
     }
 
 if __name__ == '__main__':
