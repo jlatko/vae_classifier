@@ -1,0 +1,4 @@
+model_config:
+  mode: vae
+  z_dim: 4
+  hidden_dim: 20
