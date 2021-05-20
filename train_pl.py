@@ -12,6 +12,7 @@ import wandb
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
+from utils.experiment_utils import run_visualizations
 from utils.wandb_filesync import WandBFilesync
 from utils.wandb_model_checkpoint import WandBModelCheckpoint
 
@@ -30,25 +31,30 @@ pyro.set_rng_seed(0)
 def run_training(cfg : DictConfig) -> dict:
     print(OmegaConf.to_yaml(cfg))
 
+    cfg_file = os.path.join(wandb.run.dir, 'config.yaml')
+    with open(cfg_file, 'w') as fh:
+        fh.write(OmegaConf.to_yaml(cfg))
+    wandb.save(cfg_file)
+
     data_module = SemiSupervised(cfg["fraction_missing"], cfg["missing_batch_size"], cfg["labelled_batch_size"], cfg["n_steps"])
     hyperparams = {**cfg["optimizer_config"], **cfg["model_config"]}
 
     model_config = dict(cfg["model_config"])
-    if model_config.pop("mode") == "vae":
+    is_vae =  model_config.pop("mode") == "vae"
+    if is_vae:
         model = LightningVAE(a=cfg["a"], vae_config=model_config, optimizer_config=cfg["optimizer_config"])
     else:
         model = LightningClassifier(classifier_config=model_config, optimizer_config=cfg["optimizer_config"])
 
     callbacks = []
 
-    last_path = os.path.join(wandb.run.dir)
-    callbacks.append(pl.callbacks.ModelCheckpoint(dirpath=last_path,
+    callbacks.append(pl.callbacks.ModelCheckpoint(dirpath=wandb.run.dir,
                                                   monitor='val_loss',
                                                   filename='model',
                                                   verbose=True,
                                                   period=1))
     wandb.save('*.ckpt') # should keep it up to date
-    callbacks.append(WandBFilesync(filename='model.ckpt', period=10)) # not sure if this one is necessary
+    # callbacks.append(WandBFilesync(filename='model.ckpt', period=10)) # not sure if this one is necessary
 
     if cfg["use_wandb"]:
         logger = pl.loggers.WandbLogger()
@@ -57,12 +63,15 @@ def run_training(cfg : DictConfig) -> dict:
     else:
         logger = pl.loggers.CSVLogger
 
-    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs")
+    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs", max_epochs=cfg["max_epochs"])
 
     # trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
 
     trainer.fit(model, datamodule=data_module)
     trainer.test(model, datamodule=data_module)
+
+    if is_vae:
+        run_visualizations(model, data_module.test_dataloader(), os.path.join(wandb.run.dir, 'fig'))
 
     # TODO: save model
     # TODO: early stopping

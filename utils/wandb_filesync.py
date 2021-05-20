@@ -6,6 +6,6 @@ class WandBFilesync(pl.callbacks.Callback):
         self.filename = filename
         self.period = period
 
-    def on_validation_end(self, trainer, pl_module, checkpoint):
+    def on_validation_end(self, trainer, pl_module):
         if (trainer.current_epoch % self.period) == 0:
-            wandb.save(self.filename, base_path=wandb.run.dir)
+            wandb.save(self.filename)

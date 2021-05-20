@@ -34,7 +34,6 @@ class LightningVAE(pl.LightningModule):
         probs = torch.nn.functional.softmax(y_logits, dim=1)
 
         self.train_acc(probs, y)
-        # TODO: ??
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train_loss_sup", loss_sup, on_step=False, on_epoch=True)
         self.log("train_loss_unsup", loss_unsup, on_step=False, on_epoch=True)

@@ -75,10 +75,11 @@ class VAE(torch.nn.Module):
 
     def reconstruct_img(self, x):
         # encode image x
-        z_loc, z_scale, y_prob, y_logits = self.encoder(x)
+        z_loc, z_scale = self.encoder(x)
+        y_logits = self.classifier(x)
         # sample in latent space
         z = dist.Normal(z_loc, z_scale).sample()
-        y = dist.Categorical(y_prob).sample()
+        y = dist.Categorical(torch.nn.functional.softmax(y_logits, dim=-1)).sample()
         # decode the image (note we don't sample in image space)
         loc_img = self.decoder(z, y)
         return loc_img
