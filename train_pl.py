@@ -64,7 +64,10 @@ def run_training(cfg : DictConfig) -> dict:
     else:
         logger = pl.loggers.CSVLogger
 
-    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs", max_epochs=cfg["max_epochs"])
+    gpus = 0
+    if USE_CUDA:
+        gpus = 1
+    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs", max_epochs=cfg["max_epochs"], gpus=gpus)
 
     # trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
 

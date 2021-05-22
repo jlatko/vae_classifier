@@ -1,8 +1,6 @@
 import torch
 import pyro
 
-from utils.torch_utils import to_gpu
-
 cross_entropy = torch.nn.CrossEntropyLoss()
 loss_fn = pyro.infer.Trace_ELBO().differentiable_loss
 
@@ -11,8 +9,6 @@ def get_losses(vae, y, x, x_unsupervised):
   # classification
   if x is not None:
       n = len(x)
-      x = to_gpu(x)
-      y = to_gpu(y)
       y_logits = vae.classifier(x)
       loss_class = cross_entropy(y_logits, y)
 
@@ -29,7 +25,6 @@ def get_losses(vae, y, x, x_unsupervised):
   # unsupervised ELBO (missing y)
   if x_unsupervised is not None:
     n = len(x_unsupervised)
-    x_unsupervised = to_gpu(x_unsupervised)
     loss_unsup = loss_fn(
         vae.model_unsupervised,
         vae.guide_unsupervised,
