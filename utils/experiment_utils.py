@@ -41,7 +41,7 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
 
     recons = []
     for i in range(10):
-        recons.append(model.vae.decoder(z, torch.ones(1 + n*2, dtype=np.int) * i).reshape(-1, 28, 28).cpu().detach().numpy())
+        recons.append(model.vae.decoder(z, to_gpu(torch.ones(1 + n*2, dtype=np.int) * i)).reshape(-1, 28, 28).cpu().detach().numpy())
 
     plt.figure(figsize=(12, 12))
 

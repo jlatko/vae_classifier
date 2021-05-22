@@ -96,8 +96,9 @@ def get_latents(model, dataloader):
     z_scales = []
     ys = []
     for x, y in dataloader:
-        ys.append(y.cpu().numpy())
+        x = to_gpu(x)
         z_loc, z_scale = model.vae.encoder(to_gpu(x))
+        ys.append(y.cpu().numpy())
         z_locs.append(z_loc.detach().cpu().numpy())
         z_scales.append(z_scale.detach().cpu().numpy())
     return np.concatenate(z_locs, axis=0), np.concatenate(z_scales, axis=0), np.concatenate(ys, axis=0)
