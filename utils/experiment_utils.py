@@ -70,6 +70,7 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig(filename)
     filenames.append(filename)
+    # TODO wandb plots
     return filenames
 
 
