@@ -3,7 +3,6 @@ import os
 
 from data.semi_supervised import SemiSupervised
 import torch
-import pyro
 import pytorch_lightning as pl
 
 from modules.lightning.classifier import LightningClassifier
@@ -19,13 +18,6 @@ from utils.wandb_model_checkpoint import WandBModelCheckpoint
 wandb.init(project='vae_classifier', entity='mbml')
 
 USE_CUDA = torch.cuda.is_available()
-
-
-assert pyro.__version__.startswith('1.6.0')
-# without that Bernoulli raises: The value argument must be within the support
-# TODO: maybe we should keep it...
-pyro.distributions.enable_validation(False)
-pyro.set_rng_seed(0)
 
 @hydra.main(config_path='config', config_name="default")
 def run_training(cfg : DictConfig) -> dict:
