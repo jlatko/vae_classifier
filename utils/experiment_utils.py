@@ -4,7 +4,6 @@ import torch
 import wandb
 
 from utils.torch_utils import to_gpu
-import pyro.distributions as dist
 import numpy as np
 import matplotlib.pyplot as plt
 
