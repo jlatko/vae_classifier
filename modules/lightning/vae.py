@@ -39,7 +39,7 @@ class LightningVAE(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx): # pylint: disable=unused-argument
-        x, y = batch["labelled"]
+        x, y = batch
         x_unsupervised, _ = batch["missing"]
         loss_class, loss_s_recon, loss_s_KL = self.supervised_step(x, y)
         loss_u_recon, loss_u_KL, y_logits = self.unsupervised_step(x_unsupervised)
@@ -59,7 +59,7 @@ class LightningVAE(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
-        x, y = batch["labelled"]
+        x, y = batch
         loss_class, loss_s_recon, loss_s_KL = self.supervised_step(x, y)
         loss_u_recon, loss_u_KL, y_logits = self.unsupervised_step(x)
         loss = loss_s_recon + loss_u_recon + loss_s_KL + loss_u_KL + self.a * loss_class
