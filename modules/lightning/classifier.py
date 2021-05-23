@@ -1,7 +1,4 @@
-import pyro
 import torch
-import pyro.distributions as dist
-import pyro.contrib.examples.util
 import pytorch_lightning as pl
 
 from criterion.get_losses import get_losses
