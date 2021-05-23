@@ -15,13 +15,47 @@ def run_visualizations(model, test_dataloader, path='./fig/'):
 
     if not os.path.exists(path):
         os.makedirs(path)
-    # import IPython
-    # IPython.embed()
+        os.makedirs(os.path.join(path, 'z_space'))
+
     filenames = test_reconstructions(model, test_dataloader, path=path)
     filenames += digit_reconstructions(model, test_dataloader, path=path)
+    filenames += latent_interpolation(model, test_dataloader, path=os.path.join(path, 'z_space'))
+
     for filename in filenames:
         wandb.save(filename)
-    # TODO: sync vis
+
+
+def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
+    filenames = []
+
+    x, y = next(iter(test_dataloader))
+    x = to_gpu(x)
+    y = to_gpu(y)
+    x = x[:n]
+    y = y[:n]
+    z_loc, z_scale = model.vae.encoder(x)
+
+    for z_ind in range(z_loc.shape[-1]):
+        recons = []
+        z_add = torch.zeros_like(z_loc)
+        z_add[:, z_ind] = 1
+        for j in np.linspace(-2,2,11):
+            recons.append(model.vae.decoder(z_loc + z_add * j, y).reshape(-1, 28, 28).cpu().detach().numpy())
+
+        plt.figure(figsize=(10, 11))
+        for i in range(n):
+            for j in range(11):
+                plt.subplot(n, 11, i*11 + j + 1)
+                plt.imshow(recons[j][i])
+                plt.axis('off')
+
+        filename = os.path.join(path, f'z_manipulation_{z_ind}.png')
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0, hspace=0)
+        plt.savefig(filename)
+        filenames.append(filename)
+
+    return filenames
 
 def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
     filenames = []

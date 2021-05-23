@@ -1,4 +1,5 @@
 model_config:
   mode: classifier
-  classifier_units: [64, 64]
-  use_batch_norm: false
+  classifier_config:
+    units: [64, 64]
+    use_batch_norm: false
