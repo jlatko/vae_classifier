@@ -38,7 +38,7 @@ def run_training(cfg : DictConfig) -> dict:
     wandb.save(cfg_file)
 
     data_module = SemiSupervised(cfg["labelled_per_class"], cfg["missing_batch_size"], cfg["labelled_batch_size"], cfg["n_steps"])
-    hyperparams = {"a": cfg["a"], **cfg["optimizer_config"], **cfg["model_config"]}
+    hyperparams = {"a": cfg["a"], "labelled_per_class": cfg["labelled_per_class"], **cfg["optimizer_config"], **cfg["model_config"], }
 
     model_config = dict(cfg["model_config"])
     is_vae =  model_config.pop("mode") == "vae"
