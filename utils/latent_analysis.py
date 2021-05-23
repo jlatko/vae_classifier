@@ -51,7 +51,7 @@ def analyze_latents(model, test_dataloader, path='./fig/'):
         wandb.log({"z_scale_std": np.std(z_scale[:, i]), "step": i})
 
     # pca
-    n_components = 3
+    n_components = min(3, z_loc.shape[-1])
     pca = PCA(n_components=n_components)
     z_pca = pca.fit_transform(z_loc)
     numpy_save_synch(path, z_pca, 'z_pca.npy')
