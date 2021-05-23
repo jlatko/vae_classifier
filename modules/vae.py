@@ -13,16 +13,13 @@ from utils.torch_utils import to_gpu
 class VAE(torch.nn.Module):
     # by default our latent space is 50-dimensional
     # and we use 400 hidden units
-    def __init__(self, encoder_config, decoder_config, classifier_units, use_batch_norm=False, z_dim=50, use_cuda=False):
+    def __init__(self, encoder_config, decoder_config, classifier_config, z_dim=50, use_cuda=False):
         super().__init__()
         # create the encoder and decoder networks
         self.encoder = Encoder(z_dim,
-                               encoder_config['shared_units'],
-                               encoder_config['separate_units'],
-                               use_batch_norm=use_batch_norm)
-        self.classifier = Classifier(classifier_units, use_batch_norm=use_batch_norm)
-        self.decoder = Decoder(z_dim, decoder_config['z_units'], decoder_config['y_embedding_size'],
-                               decoder_config['decoder_units'], use_batch_norm=use_batch_norm)
+                               **encoder_config)
+        self.classifier = Classifier(**classifier_config)
+        self.decoder = Decoder(z_dim, **decoder_config)
 
         if use_cuda:
             self.cuda()
