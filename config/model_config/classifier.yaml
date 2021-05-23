@@ -1,3 +1,4 @@
 model_config:
   mode: classifier
-  hidden_dim: 20
+  classifier_units: [64, 64]
+  use_batch_norm: false

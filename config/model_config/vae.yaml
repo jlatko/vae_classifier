@@ -1,4 +1,14 @@
 model_config:
   mode: vae
   z_dim: 4
-  hidden_dim: 20
+  classifier_units: [64, 64]
+  use_batch_norm: false
+  encoder_config:
+    shared_units: [100]
+    separate_units: []
+
+  decoder_config:
+    z_units: [100]
+    y_embedding_size: 100
+    decoder_units: [100]
+

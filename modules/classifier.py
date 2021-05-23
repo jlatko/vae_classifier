@@ -1,16 +1,17 @@
 import torch
 
+from utils.model_utils import build_dense_nn
+
 
 class Classifier(torch.nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self, classifier_units, use_batch_norm=False):
         super().__init__()
         # setup the three linear transformations used
-        self.fc1 = torch.nn.Linear(784, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, 10)
-        # setup the non-linearities
-        self.softplus = torch.nn.Softplus()
+        self.nn = build_dense_nn(784, classifier_units + [10],
+                                 use_batch_norm=use_batch_norm,
+                                 last_batchnorm=False,
+                                 last_activation=None)
 
     def forward(self, x):
         x = x.reshape(-1, 784)
-        hidden = self.softplus(self.fc1(x))
-        return self.fc2(hidden)
+        return self.nn(x) # logits

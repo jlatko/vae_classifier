@@ -8,9 +8,9 @@ from data.torchvision_dataset import get_datasets
 
 
 class SemiSupervised(pl.LightningDataModule):
-    def __init__(self, fraction_missing=0.5, missing_batch_size=128, labelled_batch_size=128, n_steps=200):
+    def __init__(self, labelled_per_class=600, missing_batch_size=128, labelled_batch_size=128, n_steps=200):
         super(SemiSupervised, self).__init__()
-        self.fraction_missing = fraction_missing
+        self.labelled_per_class = labelled_per_class
         self.missing_batch_size = missing_batch_size
         self.labelled_batch_size = labelled_batch_size
         self.n_steps = n_steps
@@ -27,13 +27,13 @@ class SemiSupervised(pl.LightningDataModule):
 
     def train_dataloader(self):
         print("setting up dataloaders")
-        if self.fraction_missing == 0:
+        if self.labelled_per_class == -1: # all
             train_loader_labelled = torch.utils.data.DataLoader(self.train_dataset,
                                                                 batch_size=self.labelled_batch_size, shuffle=True,
                                                                 num_workers=2)
             train_loader_missing = DummyIterator(len(train_loader_labelled))
         else:
-            data_labelled, data_missing = get_missing_labels_dataset(self.train_dataset, fraction_missing=self.fraction_missing)
+            data_labelled, data_missing = get_missing_labels_dataset(self.train_dataset, labelled_per_class=self.labelled_per_class)
 
             # use explicit sampler to specify number of samples per epoch
             # labelled samples
@@ -47,8 +47,8 @@ class SemiSupervised(pl.LightningDataModule):
                                                                batch_size=self.labelled_batch_size, sampler=sampler,
                                                                num_workers=2)
 
-            # use both together
-            return {'labelled': train_loader_labelled, 'missing': train_loader_missing}
+        # use both together
+        return {'labelled': train_loader_labelled, 'missing': train_loader_missing}
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(self.test_dataset,
