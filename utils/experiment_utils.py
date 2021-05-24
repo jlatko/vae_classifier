@@ -117,7 +117,7 @@ def test_reconstructions(model, test_dataloader, n=2, b=10, path='./fig/'):
 
     z_loc, z_scale = model.encoder(x)
     # sample in latent space
-    z_s = dist.Normal(z_loc, z_scale).sample()
+    z_s = torch.dist.Normal(z_loc, z_scale).sample()
 
     # decode the image (note we don't sample in image space)
     reconstructions_mean = model.decoder(z_loc, y_max).reshape(-1, 28, 28).cpu().detach().numpy()

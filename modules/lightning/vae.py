@@ -51,10 +51,10 @@ class LightningVAE(pl.LightningModule):
 
         self.train_acc(probs, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train_loss_sup", loss_s_recon, on_step=False, on_epoch=True)
-        self.log("train_loss_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
-        self.log("train_loss_unsup", loss_u_recon, on_step=False, on_epoch=True)
-        self.log("train_loss_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
+        self.log("train_sup_recon", loss_s_recon, on_step=False, on_epoch=True)
+        self.log("train_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
+        self.log("train_unsup_recon", loss_u_recon, on_step=False, on_epoch=True)
+        self.log("train_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
         self.log("train_loss_class", loss_class, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -74,10 +74,10 @@ class LightningVAE(pl.LightningModule):
         self.val_acc(probs, y)
 
         self.log("val_loss", loss, on_step=False, on_epoch=True)
-        self.log("val_loss_sup", loss_s_recon, on_step=False, on_epoch=True)
-        self.log("val_loss_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
-        self.log("val_loss_unsup", loss_u_recon, on_step=False, on_epoch=True)
-        self.log("val_loss_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
+        self.log("val_sup_recon", loss_s_recon, on_step=False, on_epoch=True)
+        self.log("val_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
+        self.log("val_unsup_recon", loss_u_recon, on_step=False, on_epoch=True)
+        self.log("val_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
         self.log("val_loss_class", loss_class, on_step=False, on_epoch=True)
         self.log("val_acc", self.val_acc, on_step=False, on_epoch=True)
 
