@@ -18,11 +18,12 @@ class LightningVAE(pl.LightningModule):
         # self.vae = VAE(**vae_config)
         self.use_cuda = use_cuda
         self.z_dim = vae_config['z_dim']
-        self.hidden_dim = vae_config['hidden_dim']
 
-        self.encoder = Encoder(self.z_dim, self.hidden_dim)
-        self.classifier = Classifier(self.hidden_dim)
-        self.decoder = Decoder(self.z_dim, self.hidden_dim)
+        # create the encoder and decoder networks
+        self.encoder = Encoder(self.z_dim,  **vae_config['encoder_config'])
+        self.classifier = Classifier(**vae_config['classifier_config'])
+        self.decoder = Decoder(self.z_dim, **vae_config['decoder_config'])
+
 
         if self.use_cuda:
             self.cuda()
@@ -124,8 +125,3 @@ class LightningVAE(pl.LightningModule):
         likelihood = likelihood.view(likelihood.size(0), -1).sum(1)
 
         return likelihood
-
-        ELBO = torch.mean(likelihood) - (kl_weight*torch.mean(kl_div))
-        
-        # minus sign as we want to maximise ELBO
-        return -ELBO, kl_weight*kl_div.mean() 

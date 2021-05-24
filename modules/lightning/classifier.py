@@ -11,7 +11,7 @@ class LightningClassifier(pl.LightningModule):
     def __init__(self, classifier_config, optimizer_config):
         super(LightningClassifier, self).__init__()
         # create the encoder and decoder networks
-        self.classifier = Classifier(**classifier_config)
+        self.classifier = Classifier(**classifier_config["classifier_config"])
         self.train_acc = pl.metrics.Accuracy()
         self.val_acc = pl.metrics.Accuracy()
         self.optimizer_config = optimizer_config

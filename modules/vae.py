@@ -6,18 +6,20 @@ import pyro.contrib.examples.util
 from modules.classifier import Classifier
 from modules.decoder import Decoder
 from modules.encoder import Encoder
+from utils.model_utils import build_dense_nn
 from utils.torch_utils import to_gpu
 
 
 class VAE(torch.nn.Module):
     # by default our latent space is 50-dimensional
     # and we use 400 hidden units
-    def __init__(self, z_dim=50, hidden_dim=400, use_cuda=False):
+    def __init__(self, encoder_config, decoder_config, classifier_config, z_dim=50, use_cuda=False):
         super().__init__()
         # create the encoder and decoder networks
-        self.encoder = Encoder(z_dim, hidden_dim)
-        self.classifier = Classifier(hidden_dim)
-        self.decoder = Decoder(z_dim, hidden_dim)
+        self.encoder = Encoder(z_dim,
+                               **encoder_config)
+        self.classifier = Classifier(**classifier_config)
+        self.decoder = Decoder(z_dim, **decoder_config)
 
         if use_cuda:
             self.cuda()
