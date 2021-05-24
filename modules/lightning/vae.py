@@ -1,7 +1,7 @@
 import torch
 
 import pytorch_lightning as pl
-from torch.nn.functional import cross_entropy
+from torch.nn.functional import binary_cross_entropy, cross_entropy, kl_div
 from torch.distributions import normal, kl
 
 
@@ -27,6 +27,7 @@ class LightningVAE(pl.LightningModule):
         if self.use_cuda:
             self.cuda()
 
+        self.kl_weight = 1
         self.a = a
         self.use_a = False
         self.train_acc = pl.metrics.Accuracy()
@@ -39,11 +40,11 @@ class LightningVAE(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx): # pylint: disable=unused-argument
-        x, y = batch
+        x, y = batch['labelled']
         x_unsupervised, _ = batch["missing"]
-        loss_class, loss_s_recon, loss_s_KL = self.supervised_step(x, y)
-        loss_u_recon, loss_u_KL, y_logits = self.unsupervised_step(x_unsupervised)
-        loss = loss_s_recon + loss_u_recon + loss_s_KL + loss_u_KL + self.a * loss_class
+        loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
+        loss_u_recon, loss_u_KL = self.unsupervised_step(x_unsupervised)
+        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL) + self.a * loss_class
         
         probs = torch.nn.functional.softmax(y_logits, dim=1)
 
@@ -60,9 +61,12 @@ class LightningVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
-        loss_class, loss_s_recon, loss_s_KL = self.supervised_step(x, y)
-        loss_u_recon, loss_u_KL, y_logits = self.unsupervised_step(x)
-        loss = loss_s_recon + loss_u_recon + loss_s_KL + loss_u_KL + self.a * loss_class
+        loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
+        loss_u_recon, loss_u_KL = self.unsupervised_step(x)
+        loss = loss_s_recon 
+        loss += loss_u_recon 
+        loss += self.kl_weight * (loss_s_KL + loss_u_KL) 
+        loss += self.a * loss_class
 
         probs = torch.nn.functional.softmax(y_logits, dim=1)
 
@@ -78,45 +82,48 @@ class LightningVAE(pl.LightningModule):
 
 
     def supervised_step(self, x, y):
-        mu, log_var = self.encoder(x)
+        mu, var = self.encoder(x)
         y_dist = self.classifier(x) # <- only for class loss)
-        loss_class = cross_entropy(y_dist, y, reduction='none')
-        loss_recon, loss_KL = self.ELBO_loss(y, x, mu, log_var)
-        return loss_class, loss_recon, loss_KL
+        loss_class = cross_entropy(y_dist, y, reduction='mean')
+        z, kl_div = self.sample_z(mu, var)
+        loss_recon = self.recon_loss(y, x, z)
+        return loss_class, loss_recon.mean(), kl_div.mean(), y_dist
 
 
     def unsupervised_step(self, x):
-        mu, log_var = self.encoder(x)
+        mu, var = self.encoder(x)
         # unsupervised
-        y_dist = self.classifier(x)
+        y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
         # for i in N_samples: # <- we can ignore this loop for now 
         if self.use_a: # also ignore this for now
             a = self.a.sample() # TODO implement true a
         total_loss_recon = 0
-        y = torch.arange(0,10)
-        loss_recon, loss_KL = self.ELBO_loss(y, x, mu, log_var)
-        total_loss_recon = y_dist * loss_recon
+        y = to_gpu((torch.ones((mu.shape[0], 10), dtype=torch.int64) * torch.arange(0,10)).T)
+        z, kl_div = self.sample_z(mu, var)
+        for margin_y in y:
+            loss_recon = self.recon_loss(margin_y, x, z)
+            total_loss_recon += y_dist[:,margin_y[0].item()] * loss_recon
 
-        return total_loss_recon, loss_KL, y_dist
+        return total_loss_recon.mean(), kl_div.mean()
 
+    def sample_z(self, mu, var):
 
-    def ELBO_loss(self, y, x, mu, log_var, kl_weight=1):
-        # Sum over features
-        
-        sigma = torch.exp(log_var*2)
-
-        p = normal.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
-        q = normal.Normal(mu, sigma)
+        p = normal.Normal(torch.zeros_like(mu), torch.ones_like(var))
+        q = normal.Normal(mu, var)
         
         kl_div = kl.kl_divergence(q, p)
 
+        # Reparametrized sample from q
         z = q.rsample()
+        return z, kl_div
 
-        x_hat = self.decoder(y, z)
+    def recon_loss(self, y, x, z):
+        x_hat = self.decoder(z, y)
 
-        likelihood = -cross_entropy(x_hat, x, reduction="none")
+        likelihood = binary_cross_entropy(x_hat, x.view(x.shape[0],-1), reduction="none")
         likelihood = likelihood.view(likelihood.size(0), -1).sum(1)
 
+        return likelihood
 
         ELBO = torch.mean(likelihood) - (kl_weight*torch.mean(kl_div))
         
