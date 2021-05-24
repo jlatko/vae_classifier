@@ -3,17 +3,16 @@ hydra:
   run:
     # Output directory for normal runs
     dir: ./
-num_epochs: 100
 test_frequency: 1 # unused?
 a: 2
-fraction_missing: 0.9
+labelled_per_class: 100
 missing_batch_size: 128
 labelled_batch_size: 128
 n_steps: 500
 use_wandb: true
-max_epochs: 20
+max_epochs: 100
 optimizer_config:
-  lr: 4e-3
+  lr: 3e-4
 defaults:
   - model_config: vae
 

@@ -3,7 +3,6 @@ import os
 
 from data.semi_supervised import SemiSupervised
 import torch
-import pyro
 import pytorch_lightning as pl
 
 from modules.lightning.classifier import LightningClassifier
@@ -13,19 +12,13 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from utils.experiment_utils import run_visualizations
+from utils.latent_analysis import analyze_latents
 from utils.wandb_filesync import WandBFilesync
 from utils.wandb_model_checkpoint import WandBModelCheckpoint
 
 wandb.init(project='vae_classifier', entity='mbml')
 
 USE_CUDA = torch.cuda.is_available()
-
-
-assert pyro.__version__.startswith('1.6.0')
-# without that Bernoulli raises: The value argument must be within the support
-# TODO: maybe we should keep it...
-pyro.distributions.enable_validation(False)
-pyro.set_rng_seed(0)
 
 @hydra.main(config_path='config', config_name="default")
 def run_training(cfg : DictConfig) -> dict:
@@ -36,8 +29,8 @@ def run_training(cfg : DictConfig) -> dict:
         fh.write(OmegaConf.to_yaml(cfg))
     wandb.save(cfg_file)
 
-    data_module = SemiSupervised(cfg["fraction_missing"], cfg["missing_batch_size"], cfg["labelled_batch_size"], cfg["n_steps"])
-    hyperparams = {**cfg["optimizer_config"], **cfg["model_config"]}
+    data_module = SemiSupervised(cfg["labelled_per_class"], cfg["missing_batch_size"], cfg["labelled_batch_size"], cfg["n_steps"])
+    hyperparams = {"a": cfg["a"], "labelled_per_class": cfg["labelled_per_class"], **cfg["optimizer_config"], **cfg["model_config"], }
 
     model_config = dict(cfg["model_config"])
     is_vae =  model_config.pop("mode") == "vae"
@@ -47,7 +40,7 @@ def run_training(cfg : DictConfig) -> dict:
         model = LightningClassifier(classifier_config=model_config, optimizer_config=cfg["optimizer_config"])
 
     callbacks = []
-
+    callbacks.append(pl.callbacks.EarlyStopping(patience=5, monitor='val_loss'))
     callbacks.append(pl.callbacks.ModelCheckpoint(dirpath=wandb.run.dir,
                                                   monitor='val_loss',
                                                   filename='model',
@@ -63,7 +56,10 @@ def run_training(cfg : DictConfig) -> dict:
     else:
         logger = pl.loggers.CSVLogger
 
-    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs", max_epochs=cfg["max_epochs"])
+    gpus = 0
+    if USE_CUDA:
+        gpus = 1
+    trainer = pl.Trainer(callbacks=callbacks, logger=logger, default_root_dir="training/logs", max_epochs=cfg["max_epochs"], gpus=gpus)
 
     # trainer.tune(lit_model, datamodule=data)  # If passing --auto_lr_find, this will set learning rate
 
@@ -72,9 +68,8 @@ def run_training(cfg : DictConfig) -> dict:
 
     if is_vae:
         run_visualizations(model, data_module.test_dataloader(), os.path.join(wandb.run.dir, 'fig'))
+        analyze_latents(model, data_module.test_dataloader(), os.path.join(wandb.run.dir, 'fig'))
 
-    # TODO: save model
-    # TODO: early stopping
     #
     # return {
     #     'vae': vae,

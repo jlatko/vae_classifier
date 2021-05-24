@@ -1,22 +1,22 @@
 import torch
 
+from utils.model_utils import build_dense_nn
+
+
 class Decoder(torch.nn.Module):
-    def __init__(self, z_dim, hidden_dim):
+    def __init__(self, z_dim, z_units, y_embedding_size, decoder_units, use_batch_norm=False):
         super().__init__()
-        # setup the two linear transformations used
-        self.z_net = torch.nn.Sequential(
-            torch.nn.Linear(z_dim, hidden_dim),
-            torch.nn.Softplus()
-        )
-        self.y_net = torch.nn.Sequential(
-            torch.nn.Embedding(10, hidden_dim),
-        )
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(2 * hidden_dim, hidden_dim),
-            torch.nn.Softplus(),
-            torch.nn.Linear(hidden_dim, 784),
-            torch.nn.Sigmoid()
-        )
+        self.z_net = build_dense_nn(z_dim, z_units,
+                         use_batch_norm=use_batch_norm,
+                         last_batchnorm=True,
+                         last_activation='relu')
+
+        self.y_net = torch.nn.Embedding(10, y_embedding_size)
+
+        self.decoder = build_dense_nn(z_units[-1] + y_embedding_size, decoder_units + [784],
+                         use_batch_norm=use_batch_norm,
+                         last_batchnorm=False,
+                         last_activation='sigmoid')
 
     def forward(self, z, y):
         # define the forward computation on the latent z

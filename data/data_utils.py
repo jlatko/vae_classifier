@@ -1,17 +1,26 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Subset
 
-def get_missing_labels_dataset(train_dataset, fraction_missing=0.5, seed=0):
+def get_missing_labels_dataset(train_dataset, labelled_per_class=600, seed=0):
+    np.random.seed(seed)
+
     targets = np.array(train_dataset.targets)
-    train_idx, val_idx = train_test_split(
-        np.arange(len(targets)),
-        test_size=fraction_missing,
-        shuffle=True,
-        stratify=targets,
-        random_state=seed)  # seed is important
-    data_labelled = Subset(train_dataset, train_idx)
-    data_missing = Subset(train_dataset, val_idx)
+    labelled_idx = np.array([], dtype=np.int64)
+    for cls in range(10):
+        cls_indices = np.argwhere(targets == cls)[:, 0]
+        labelled_idx = np.append(labelled_idx,
+                                 np.random.choice(cls_indices,
+                                                  size=labelled_per_class,
+                                                  replace=False))
+
+    unlabelled_idx = np.array(list(set(list(range(len(targets)))) - set(labelled_idx)))
+    data_labelled = Subset(train_dataset, labelled_idx)
+    data_missing = Subset(train_dataset, unlabelled_idx)
+
+    print("Splitting datasets")
+    print("labelled: ", len(labelled_idx))
+    print("unlabelled: ", len(unlabelled_idx))
+    print("fraction: ", len(labelled_idx)/len(targets))
     return data_labelled, data_missing
 
 class DummyIterator:
