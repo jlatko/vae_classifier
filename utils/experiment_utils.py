@@ -2,6 +2,7 @@ import os
 
 import torch
 import wandb
+import pyro.distributions as dist
 
 from utils.torch_utils import to_gpu
 import numpy as np
@@ -30,9 +31,18 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
     x, y = next(iter(test_dataloader))
     x = to_gpu(x)
     y = to_gpu(y)
+
+    z_loc, z_scale = model.encoder(x)
+
+    # find z with highest variance
+    print(z_loc.var(dim=0))
+    z_max_ind = torch.argsort(z_loc.var(dim=0))[-2:]
+    print(z_max_ind)
+
     x = x[:n]
     y = y[:n]
-    z_loc, z_scale = model.encoder(x)
+    z_loc = z_loc[:n]
+    z_scale = z_scale[:n]
 
     for z_ind in range(z_loc.shape[-1]):
         recons = []
@@ -62,13 +72,13 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
     x, y = next(iter(test_dataloader))
     x = to_gpu(x)
     y = to_gpu(y)
-
     x = x[:n]
     y = y[:n]
+
     z_loc, z_scale = model.encoder(x)
 
     z_0 = torch.zeros_like(z_loc[:1])
-    z_s = torch.dist.Normal(torch.zeros_like(z_loc), torch.ones_like(z_scale)).sample()
+    z_s = dist.Normal(torch.zeros_like(z_loc), torch.ones_like(z_scale)).sample()
 
     z = torch.cat([z_0, z_s, z_loc], dim=0)
 
@@ -117,7 +127,7 @@ def test_reconstructions(model, test_dataloader, n=2, b=10, path='./fig/'):
 
     z_loc, z_scale = model.encoder(x)
     # sample in latent space
-    z_s = torch.dist.Normal(z_loc, z_scale).sample()
+    z_s = dist.Normal(z_loc, z_scale).sample()
 
     # decode the image (note we don't sample in image space)
     reconstructions_mean = model.decoder(z_loc, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
