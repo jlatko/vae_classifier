@@ -39,6 +39,30 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
     z_max_ind = torch.argsort(z_loc.var(dim=0))[-2:]
     print(z_max_ind)
 
+    # interpolate 2 most varying z for each digit
+    for t in range(10):
+        recons = []
+        y_current = to_gpu(torch.ones(11, dtype=np.int) * t)
+        for i in np.linspace(-2,2,11):
+            z = torch.zeros(11, z_loc.shape[-1])
+            z[:, z_max_ind[0]] = i
+            z[:, z_max_ind[1]] = torch.linspace(-2, 2, 11)
+            z = to_gpu(z)
+            recons.append(model.decoder(z, y_current).reshape(-1, 28, 28).cpu().detach().numpy())
+
+        plt.figure(figsize=(11, 11))
+        for i in range(11):
+            for j in range(11):
+                plt.subplot(11, 11, i * 11 + j + 1)
+                plt.imshow(recons[i][j])
+                plt.axis('off')
+
+        filename = os.path.join(path, f'z_interpolation_{t}.png')
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0, hspace=0)
+        plt.savefig(filename)
+        filenames.append(filename)
+
     x = x[:n]
     y = y[:n]
     z_loc = z_loc[:n]
