@@ -10,7 +10,7 @@ missing_batch_size: 128
 labelled_batch_size: 128
 n_steps: 500
 use_wandb: true
-max_epochs: 1
+max_epochs: 100
 optimizer_config:
   lr: 3e-4
 defaults:
