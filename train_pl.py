@@ -40,7 +40,7 @@ def run_training(cfg : DictConfig) -> dict:
         model = LightningClassifier(classifier_config=model_config, optimizer_config=cfg["optimizer_config"])
 
     callbacks = []
-    callbacks.append(pl.callbacks.EarlyStopping(patience=5, monitor='val_loss'))
+    callbacks.append(pl.callbacks.EarlyStopping(patience=10, monitor='val_loss'))
     callbacks.append(pl.callbacks.ModelCheckpoint(dirpath=wandb.run.dir,
                                                   monitor='val_loss',
                                                   filename='model',

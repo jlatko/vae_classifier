@@ -54,7 +54,7 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
         for i in range(11):
             for j in range(11):
                 plt.subplot(11, 11, i * 11 + j + 1)
-                plt.imshow(recons[i][j])
+                plt.imshow(recons[i][j], cmap='Greys')
                 plt.axis('off')
 
         filename = os.path.join(path, f'z_interpolation_{t}.png')
@@ -79,7 +79,7 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
         for i in range(n):
             for j in range(11):
                 plt.subplot(n, 11, i*11 + j + 1)
-                plt.imshow(recons[j][i])
+                plt.imshow(recons[j][i], cmap='Greys')
                 plt.axis('off')
 
         filename = os.path.join(path, f'z_manipulation_{z_ind}.png')
@@ -114,7 +114,7 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
 
     for j in range(n):
         plt.subplot(2*n + 1, 11, (j + n + 1) * 11 + 1)
-        plt.imshow(x[j].reshape(28, 28).cpu().detach().numpy())
+        plt.imshow(x[j].reshape(28, 28).cpu().detach().numpy(), cmap='Greys')
         plt.axis('off')
 
     for j in range(n):
@@ -129,7 +129,7 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
     for i in range(10):
         for j in range(2*n + 1):
             plt.subplot(2*n + 1, 11, j*11 + i + 2)
-            plt.imshow(recons[i][j])
+            plt.imshow(recons[i][j], cmap='Greys')
             plt.axis('off')
 
     filename = os.path.join(path, f'gen_digits.png')
@@ -193,27 +193,27 @@ def plot_reconstructions(original,
     for i in range(l):
         plt.subplot(l, 5, i * 5 + 1)
         plt.title(f'A. In ({labels[i]})')
-        plt.imshow(original[i])
+        plt.imshow(original[i], cmap='Greys')
         plt.axis('off')
 
         plt.subplot(l, 5, i * 5 + 2)
         plt.title(f'B. sup.')
-        plt.imshow(reconstructions_mean_sup[i])
+        plt.imshow(reconstructions_mean_sup[i], cmap='Greys')
         plt.axis('off')
 
         plt.subplot(l, 5, i * 5 + 3)
         plt.title(f'C. s sup.')
-        plt.imshow(reconstructions_sampled_sup[i])
+        plt.imshow(reconstructions_sampled_sup[i], cmap='Greys')
         plt.axis('off')
 
         plt.subplot(l, 5, i * 5 + 4)
         plt.title(f'D. ({pred[i]})')
-        plt.imshow(reconstructions_mean[i])
+        plt.imshow(reconstructions_mean[i], cmap='Greys')
         plt.axis('off')
 
         plt.subplot(l, 5, i * 5 + 5)
         plt.title(f'E. s ({pred[i]})')
-        plt.imshow(reconstructions_sampled[i])
+        plt.imshow(reconstructions_sampled[i], cmap='Greys')
         plt.axis('off')
 
     plt.tight_layout()
