@@ -1,15 +1,9 @@
-import pyro
 import torch
-import pyro.distributions as dist
-import pyro.contrib.examples.util
 import pytorch_lightning as pl
 
-from criterion.get_losses import get_losses
 from modules.classifier import Classifier
 from modules.decoder import Decoder
 from modules.encoder import Encoder
-from modules.vae import VAE
-from utils.model_utils import build_dense_nn
 from utils.torch_utils import to_gpu
 
 

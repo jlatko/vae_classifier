@@ -4,7 +4,6 @@ import torch
 import wandb
 
 from utils.torch_utils import to_gpu
-import pyro.distributions as dist
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -33,14 +32,14 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
     y = to_gpu(y)
     x = x[:n]
     y = y[:n]
-    z_loc, z_scale = model.vae.encoder(x)
+    z_loc, z_scale = model.encoder(x)
 
     for z_ind in range(z_loc.shape[-1]):
         recons = []
         z_add = torch.zeros_like(z_loc)
         z_add[:, z_ind] = 1
         for j in np.linspace(-2,2,11):
-            recons.append(model.vae.decoder(z_loc + z_add * j, y).reshape(-1, 28, 28).cpu().detach().numpy())
+            recons.append(model.decoder(z_loc + z_add * j, y).reshape(-1, 28, 28).cpu().detach().numpy())
 
         plt.figure(figsize=(10, 11))
         for i in range(n):
@@ -66,16 +65,16 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
 
     x = x[:n]
     y = y[:n]
-    z_loc, z_scale = model.vae.encoder(x)
+    z_loc, z_scale = model.encoder(x)
 
     z_0 = torch.zeros_like(z_loc[:1])
-    z_s = dist.Normal(torch.zeros_like(z_loc), torch.ones_like(z_scale)).sample()
+    z_s = torch.dist.Normal(torch.zeros_like(z_loc), torch.ones_like(z_scale)).sample()
 
     z = torch.cat([z_0, z_s, z_loc], dim=0)
 
     recons = []
     for i in range(10):
-        recons.append(model.vae.decoder(z, to_gpu(torch.ones(1 + n*2, dtype=np.int) * i)).reshape(-1, 28, 28).cpu().detach().numpy())
+        recons.append(model.decoder(z, to_gpu(torch.ones(1 + n*2, dtype=np.int) * i)).reshape(-1, 28, 28).cpu().detach().numpy())
 
     plt.figure(figsize=(12, 12))
 
@@ -113,18 +112,18 @@ def test_reconstructions(model, test_dataloader, n=2, b=10, path='./fig/'):
     x = to_gpu(x)
     y = to_gpu(y)
 
-    y_pred = model.vae.classifier(x)
+    y_pred = model.classifier(x)
     y_max = torch.argmax(y_pred, dim=-1)
 
-    z_loc, z_scale = model.vae.encoder(x)
+    z_loc, z_scale = model.encoder(x)
     # sample in latent space
     z_s = dist.Normal(z_loc, z_scale).sample()
 
     # decode the image (note we don't sample in image space)
-    reconstructions_mean = model.vae.decoder(z_loc, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
-    reconstructions_sampled = model.vae.decoder(z_s, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
-    reconstructions_mean_sup = model.vae.decoder(z_loc, y).reshape(-1, 28, 28).cpu().detach().numpy()
-    reconstructions_sampled_sup = model.vae.decoder(z_s, y).reshape(-1, 28, 28).cpu().detach().numpy()
+    reconstructions_mean = model.decoder(z_loc, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
+    reconstructions_sampled = model.decoder(z_s, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
+    reconstructions_mean_sup = model.decoder(z_loc, y).reshape(-1, 28, 28).cpu().detach().numpy()
+    reconstructions_sampled_sup = model.decoder(z_s, y).reshape(-1, 28, 28).cpu().detach().numpy()
 
     original = x.reshape(-1,28,28).cpu().detach().numpy()
     labels = y.cpu().detach().numpy()
