@@ -152,7 +152,7 @@ class LightningVAE(pl.LightningModule):
         p = normal.Normal(torch.zeros_like(mu).T, torch.ones_like(var).T)
         q = normal.Normal(mu.T, var.T)
         
-        kl_div = kl.kl_divergence(q, p).sum(dim=1) # sum over dimensions
+        kl_div = kl.kl_divergence(q, p).sum(dim=0) # sum over dimensions
 
         # Reparametrized sample from q
         z = q.rsample().T

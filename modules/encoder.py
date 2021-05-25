@@ -9,6 +9,7 @@ class Encoder(torch.nn.Module):
         self.use_y = use_y
         if use_y:
             assert y_embedding_size > 0
+            print("using y")
             self.y_net = torch.nn.Embedding(10, y_embedding_size)
         else:
             y_embedding_size = 0
