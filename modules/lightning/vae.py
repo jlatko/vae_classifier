@@ -12,17 +12,17 @@ from utils.torch_utils import to_gpu
 
 
 class LightningVAE(pl.LightningModule):
-    def __init__(self, a, vae_config, optimizer_config, kl_warmup_epochs=5, use_cuda=False):
+    def __init__(self, a, encoder_config, classifier_config, decoder_config, z_dim, optimizer_config, kl_warmup_epochs=5, use_cuda=False):
         super(LightningVAE, self).__init__()
         # create the encoder and decoder networks
         # self.vae = VAE(**vae_config)
         self.use_cuda = use_cuda
-        self.z_dim = vae_config['z_dim']
+        self.z_dim = z_dim
 
         # create the encoder and decoder networks
-        self.encoder = Encoder(self.z_dim,  **vae_config['encoder_config'])
-        self.classifier = Classifier(**vae_config['classifier_config'])
-        self.decoder = Decoder(self.z_dim, **vae_config['decoder_config'])
+        self.encoder = Encoder(self.z_dim,  **encoder_config)
+        self.classifier = Classifier(**classifier_config)
+        self.decoder = Decoder(self.z_dim, **decoder_config)
 
 
         if self.use_cuda:
@@ -72,10 +72,7 @@ class LightningVAE(pl.LightningModule):
         x, y = batch
         loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
         loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x)
-        loss = loss_s_recon 
-        loss += loss_u_recon 
-        loss += loss_s_KL + loss_u_KL - y_entropy
-        loss += self.a * loss_class
+        loss = loss_s_recon + loss_u_recon + loss_s_KL + loss_u_KL - y_entropy + self.a * loss_class
 
         probs = torch.nn.functional.softmax(y_logits, dim=1)
 
@@ -155,7 +152,7 @@ class LightningVAE(pl.LightningModule):
         p = normal.Normal(torch.zeros_like(mu).T, torch.ones_like(var).T)
         q = normal.Normal(mu.T, var.T)
         
-        kl_div = kl.kl_divergence(q, p).sum(dim=0) # sum over dimensions
+        kl_div = kl.kl_divergence(q, p).sum(dim=1) # sum over dimensions
 
         # Reparametrized sample from q
         z = q.rsample().T

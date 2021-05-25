@@ -35,7 +35,7 @@ def run_training(cfg : DictConfig) -> dict:
     model_config = dict(cfg["model_config"])
     is_vae =  model_config.pop("mode") == "vae"
     if is_vae:
-        model = LightningVAE(a=cfg["a"], vae_config=model_config, optimizer_config=cfg["optimizer_config"])
+        model = LightningVAE(a=cfg["a"], optimizer_config=cfg["optimizer_config"], **model_config)
     else:
         model = LightningClassifier(classifier_config=model_config, optimizer_config=cfg["optimizer_config"])
 
