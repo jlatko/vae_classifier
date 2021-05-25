@@ -97,7 +97,6 @@ class LightningVAE(pl.LightningModule):
 
 
     def _unsupervised_step_y(self, x):
-
         # unsupervised
         y_logits = self.classifier(x)
         y_dist = torch.nn.functional.softmax(y_logits, dim=-1)
@@ -119,9 +118,10 @@ class LightningVAE(pl.LightningModule):
 
     def _unsupervised_step(self, x):
         # unsupervised
-        y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
-
-        y_entropy = -(y_dist * torch.log(y_dist)).sum(dim=-1).mean()
+        y_logits = self.classifier(x)
+        y_dist = torch.nn.functional.softmax(y_logits, dim=-1)
+        y_log_dist = torch.nn.functional.log_softmax(y_logits, dim=-1)
+        y_entropy = -(y_dist * y_log_dist).sum(dim=-1).mean()
 
 
         mu, var = self.encoder(x)
