@@ -12,7 +12,7 @@ from utils.torch_utils import to_gpu
 
 
 class LightningVAE(pl.LightningModule):
-    def __init__(self, a, vae_config, optimizer_config, use_cuda=False):
+    def __init__(self, a, vae_config, optimizer_config, kl_warmup_epochs=5, use_cuda=False):
         super(LightningVAE, self).__init__()
         # create the encoder and decoder networks
         # self.vae = VAE(**vae_config)
@@ -28,7 +28,7 @@ class LightningVAE(pl.LightningModule):
         if self.use_cuda:
             self.cuda()
 
-        self.kl_weight = 1
+        self.kl_warmup_epochs = kl_warmup_epochs
         self.a = a
         self.use_a = False
         self.train_acc = pl.metrics.Accuracy()
@@ -39,18 +39,25 @@ class LightningVAE(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), **self.optimizer_config)
 
+    def get_kl_weight(self):
+        if self.kl_warmup_epochs is not None and self.kl_warmup_epochs > 0:
+            e = min(self.kl_warmup_epochs, self.current_epoch)
+            return e/self.kl_warmup_epochs
+        return 1
 
     def training_step(self, batch, batch_idx): # pylint: disable=unused-argument
         x, y = batch['labelled']
         x_unsupervised, _ = batch["missing"]
+        kl_weight = self.get_kl_weight()
         loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
         loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x_unsupervised)
-        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL - y_entropy) + self.a * loss_class
+        loss = loss_s_recon + loss_u_recon + kl_weight * (loss_s_KL + loss_u_KL - y_entropy) + self.a * loss_class
         
         # probs = torch.nn.functional.softmax(y_logits, dim=1)
 
         self.train_acc(torch.argmax(y_logits,dim=1), y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("kl_weight", kl_weight, on_step=False, on_epoch=True)
         self.log("train_sup_recon", loss_s_recon, on_step=False, on_epoch=True)
         self.log("train_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
         self.log("train_unsup_recon", loss_u_recon, on_step=False, on_epoch=True)
@@ -67,7 +74,7 @@ class LightningVAE(pl.LightningModule):
         loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x)
         loss = loss_s_recon 
         loss += loss_u_recon 
-        loss += self.kl_weight * (loss_s_KL + loss_u_KL - y_entropy)
+        loss += loss_s_KL + loss_u_KL - y_entropy
         loss += self.a * loss_class
 
         probs = torch.nn.functional.softmax(y_logits, dim=1)
