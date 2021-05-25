@@ -45,11 +45,11 @@ class LightningVAE(pl.LightningModule):
         x_unsupervised, _ = batch["missing"]
         loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
         loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x_unsupervised)
-        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL + y_entropy) + self.a * loss_class
+        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL - y_entropy) + self.a * loss_class
         
-        probs = torch.nn.functional.softmax(y_logits, dim=1)
+        # probs = torch.nn.functional.softmax(y_logits, dim=1)
 
-        self.train_acc(probs, y)
+        self.train_acc(torch.argmax(y_logits,dim=1), y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train_sup_recon", loss_s_recon, on_step=False, on_epoch=True)
         self.log("train_sup_KL", loss_s_KL, on_step=False, on_epoch=True)
@@ -67,7 +67,7 @@ class LightningVAE(pl.LightningModule):
         loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x)
         loss = loss_s_recon 
         loss += loss_u_recon 
-        loss += self.kl_weight * (loss_s_KL + loss_u_KL + y_entropy)
+        loss += self.kl_weight * (loss_s_KL + loss_u_KL - y_entropy)
         loss += self.a * loss_class
 
         probs = torch.nn.functional.softmax(y_logits, dim=1)
@@ -99,8 +99,10 @@ class LightningVAE(pl.LightningModule):
     def _unsupervised_step_y(self, x):
 
         # unsupervised
-        y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
-        y_entropy = (y_dist * torch.log(y_dist)).sum(dim=-1).mean()
+        y_logits = self.classifier(x)
+        y_dist = torch.nn.functional.softmax(y_logits, dim=-1)
+        y_log_dist = torch.nn.functional.log_softmax(y_logits, dim=-1)
+        y_entropy = -(y_dist * y_log_dist).sum(dim=-1).mean()
 
         total_loss_recon = 0
         total_kl_div = 0
@@ -118,7 +120,8 @@ class LightningVAE(pl.LightningModule):
     def _unsupervised_step(self, x):
         # unsupervised
         y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
-        y_entropy = (y_dist * torch.log(y_dist)).sum(dim=-1).mean()
+
+        y_entropy = -(y_dist * torch.log(y_dist)).sum(dim=-1).mean()
 
 
         mu, var = self.encoder(x)
