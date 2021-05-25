@@ -32,7 +32,10 @@ def latent_interpolation(model, test_dataloader, n=10, path='./fig/'):
     x = to_gpu(x)
     y = to_gpu(y)
 
-    z_loc, z_scale = model.encoder(x)
+    if model.encoder.use_y:
+        z_loc, z_scale = model.encoder(to_gpu(x), y)
+    else:
+        z_loc, z_scale = model.encoder(to_gpu(x))
 
     # find z with highest variance
     print(z_loc.var(dim=0))
@@ -99,7 +102,10 @@ def digit_reconstructions(model, test_dataloader, n=5, path='./fig/'):
     x = x[:n]
     y = y[:n]
 
-    z_loc, z_scale = model.encoder(x)
+    if model.encoder.use_y:
+        z_loc, z_scale = model.encoder(to_gpu(x), y)
+    else:
+        z_loc, z_scale = model.encoder(to_gpu(x))
 
     z_0 = torch.zeros_like(z_loc[:1])
     z_s = dist.Normal(torch.zeros_like(z_loc), torch.ones_like(z_scale)).sample()
@@ -149,13 +155,21 @@ def test_reconstructions(model, test_dataloader, n=2, b=10, path='./fig/'):
     y_pred = model.classifier(x)
     y_max = torch.argmax(y_pred, dim=-1)
 
-    z_loc, z_scale = model.encoder(x)
+    if model.encoder.use_y:
+        z_loc, z_scale = model.encoder(to_gpu(x), y_max)
+    else:
+        z_loc, z_scale = model.encoder(to_gpu(x))
     # sample in latent space
     z_s = dist.Normal(z_loc, z_scale).sample()
 
     # decode the image (note we don't sample in image space)
     reconstructions_mean = model.decoder(z_loc, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
     reconstructions_sampled = model.decoder(z_s, y_max).reshape(-1, 28, 28).cpu().detach().numpy()
+
+    if model.encoder.use_y: # run again with true y
+        z_loc, z_scale = model.encoder(to_gpu(x), y)
+        z_s = dist.Normal(z_loc, z_scale).sample()
+
     reconstructions_mean_sup = model.decoder(z_loc, y).reshape(-1, 28, 28).cpu().detach().numpy()
     reconstructions_sampled_sup = model.decoder(z_s, y).reshape(-1, 28, 28).cpu().detach().numpy()
 

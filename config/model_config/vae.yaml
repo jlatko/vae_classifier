@@ -8,6 +8,7 @@ model_config:
     shared_units: [100]
     separate_units: []
     use_batch_norm: false
+    use_y: false
 
   decoder_config:
     z_units: [100]

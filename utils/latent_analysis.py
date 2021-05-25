@@ -97,8 +97,12 @@ def get_latents(model, dataloader):
     ys = []
     for x, y in dataloader:
         x = to_gpu(x)
-        z_loc, z_scale = model.encoder(to_gpu(x))
-        ys.append(y.cpu().numpy())
+        y = to_gpu(y)
+        if model.encoder.use_y:
+            z_loc, z_scale = model.encoder(to_gpu(x), y)
+        else:
+            z_loc, z_scale = model.encoder(to_gpu(x))
+        ys.append(y.detach().cpu().numpy())
         z_locs.append(z_loc.detach().cpu().numpy())
         z_scales.append(z_scale.detach().cpu().numpy())
     return np.concatenate(z_locs, axis=0), np.concatenate(z_scales, axis=0), np.concatenate(ys, axis=0)

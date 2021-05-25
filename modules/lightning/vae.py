@@ -44,8 +44,8 @@ class LightningVAE(pl.LightningModule):
         x, y = batch['labelled']
         x_unsupervised, _ = batch["missing"]
         loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
-        loss_u_recon, loss_u_KL = self.unsupervised_step(x_unsupervised)
-        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL) + self.a * loss_class
+        loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x_unsupervised)
+        loss = loss_s_recon + loss_u_recon + self.kl_weight * (loss_s_KL + loss_u_KL + y_entropy) + self.a * loss_class
         
         probs = torch.nn.functional.softmax(y_logits, dim=1)
 
@@ -56,6 +56,7 @@ class LightningVAE(pl.LightningModule):
         self.log("train_unsup_recon", loss_u_recon, on_step=False, on_epoch=True)
         self.log("train_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
         self.log("train_loss_class", loss_class, on_step=False, on_epoch=True)
+        self.log("train_y_entropy", y_entropy, on_step=False, on_epoch=True)
         self.log("train_acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
@@ -63,10 +64,10 @@ class LightningVAE(pl.LightningModule):
     def validation_step(self, batch, batch_idx):  # pylint: disable=unused-argument
         x, y = batch
         loss_class, loss_s_recon, loss_s_KL, y_logits = self.supervised_step(x, y)
-        loss_u_recon, loss_u_KL = self.unsupervised_step(x)
+        loss_u_recon, loss_u_KL, y_entropy = self.unsupervised_step(x)
         loss = loss_s_recon 
         loss += loss_u_recon 
-        loss += self.kl_weight * (loss_s_KL + loss_u_KL) 
+        loss += self.kl_weight * (loss_s_KL + loss_u_KL + y_entropy)
         loss += self.a * loss_class
 
         probs = torch.nn.functional.softmax(y_logits, dim=1)
@@ -79,11 +80,15 @@ class LightningVAE(pl.LightningModule):
         self.log("val_unsup_recon", loss_u_recon, on_step=False, on_epoch=True)
         self.log("val_unsup_KL", loss_u_KL, on_step=False, on_epoch=True)
         self.log("val_loss_class", loss_class, on_step=False, on_epoch=True)
+        self.log("val_y_entropy", y_entropy, on_step=False, on_epoch=True)
         self.log("val_acc", self.val_acc, on_step=False, on_epoch=True)
 
 
     def supervised_step(self, x, y):
-        mu, var = self.encoder(x)
+        if self.encoder.use_y:
+            mu, var = self.encoder(x, y)
+        else:
+            mu, var = self.encoder(x)
         y_dist = self.classifier(x) # <- only for class loss)
         loss_class = cross_entropy(y_dist, y, reduction='mean')
         z, kl_div = self.sample_z(mu, var)
@@ -91,31 +96,59 @@ class LightningVAE(pl.LightningModule):
         return loss_class, loss_recon.mean(), kl_div.mean(), y_dist
 
 
-    def unsupervised_step(self, x):
-        mu, var = self.encoder(x)
+    def _unsupervised_step_y(self, x):
+
         # unsupervised
         y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
-        # for i in N_samples: # <- we can ignore this loop for now 
-        if self.use_a: # also ignore this for now
-            a = self.a.sample() # TODO implement true a
+        y_entropy = (y_dist * torch.log(y_dist)).sum(dim=-1).mean()
+
+        total_loss_recon = 0
+        total_kl_div = 0
+        y = to_gpu((torch.ones((x.shape[0], 10), dtype=torch.int64) * torch.arange(0,10)).T)
+        for margin_y in y:
+            # sample dependent on y
+            mu, var = self.encoder(x, margin_y)
+            z, kl_div = self.sample_z(mu, var)
+
+            loss_recon = self.recon_loss(margin_y, x, z)
+            total_loss_recon += y_dist[:,margin_y[0].item()] * loss_recon
+            total_kl_div += y_dist[:,margin_y[0].item()] * kl_div
+        return total_loss_recon.mean(), total_kl_div.mean(), y_entropy
+
+    def _unsupervised_step(self, x):
+        # unsupervised
+        y_dist = torch.nn.functional.softmax(self.classifier(x), dim=-1)
+        y_entropy = (y_dist * torch.log(y_dist)).sum(dim=-1).mean()
+
+
+        mu, var = self.encoder(x)
         total_loss_recon = 0
         y = to_gpu((torch.ones((mu.shape[0], 10), dtype=torch.int64) * torch.arange(0,10)).T)
         z, kl_div = self.sample_z(mu, var)
         for margin_y in y:
+
             loss_recon = self.recon_loss(margin_y, x, z)
             total_loss_recon += y_dist[:,margin_y[0].item()] * loss_recon
 
-        return total_loss_recon.mean(), kl_div.mean()
+        return total_loss_recon.mean(), kl_div.mean(), y_entropy
+
+
+    def unsupervised_step(self, x):
+        if self.encoder.use_y:
+            return self._unsupervised_step_y(x)
+        else:
+            return self._unsupervised_step(x)
+
 
     def sample_z(self, mu, var):
 
-        p = normal.Normal(torch.zeros_like(mu), torch.ones_like(var))
-        q = normal.Normal(mu, var)
+        p = normal.Normal(torch.zeros_like(mu).T, torch.ones_like(var).T)
+        q = normal.Normal(mu.T, var.T)
         
-        kl_div = kl.kl_divergence(q, p)
+        kl_div = kl.kl_divergence(q, p).sum(dim=0) # sum over dimensions
 
         # Reparametrized sample from q
-        z = q.rsample()
+        z = q.rsample().T
         return z, kl_div
 
     def recon_loss(self, y, x, z):
